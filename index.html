@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ระบบติดตามการฝึกงานนักศึกษา</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+:root {
+  --navy: #0f1b2d;
+  --navy2: #162337;
+  --navy3: #1e3050;
+  --accent: #3b9eff;
+  --accent2: #5bb5ff;
+  --gold: #f5a623;
+  --green: #22c55e;
+  --red: #ef4444;
+  --orange: #f97316;
+  --purple: #a855f7;
+  --teal: #14b8a6;
+  --text: #e2eaf5;
+  --text2: #8fa3bf;
+  --text3: #4d6680;
+  --border: rgba(59,158,255,0.12);
+  --border2: rgba(59,158,255,0.22);
+  --card: rgba(22,35,55,0.92);
+  --glass: rgba(15,27,45,0.85);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Sarabun', sans-serif;
+  background: var(--navy);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--navy2);
+  border-bottom: 1px solid var(--border2);
+  flex-shrink: 0;
+  z-index: 1000;
+}
+.logo {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent), #1a6bd4);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.header-title { font-family: 'Prompt', sans-serif; font-size: 15px; font-weight: 600; color: var(--text); }
+.header-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.header-spacer { flex: 1; }
+
+/* stat pills */
+.stat-pills { display: flex; gap: 8px; }
+.stat-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px;
+  background: var(--navy3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+}
+.stat-pill .num { font-weight: 600; font-size: 14px; }
+.stat-pill .lbl { color: var(--text2); font-size: 11px; }
+
+/* search */
+.search-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--navy3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 6px 12px;
+  min-width: 200px;
+}
+.search-wrap input {
+  background: transparent; border: none; outline: none;
+  color: var(--text); font-family: 'Sarabun', sans-serif; font-size: 13px;
+  width: 100%;
+}
+.search-wrap input::placeholder { color: var(--text3); }
+.search-icon { color: var(--text3); font-size: 14px; }
+
+/* ── MAIN LAYOUT ── */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 300px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: var(--navy2);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.filter-bar {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-label { font-size: 11px; color: var(--text2); font-weight: 500; margin-bottom: 2px; }
+.chip {
+  padding: 4px 10px; border-radius: 14px; border: 1px solid var(--border2);
+  font-size: 11px; cursor: pointer; transition: all .15s;
+  color: var(--text2); background: var(--navy3);
+  white-space: nowrap;
+}
+.chip.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+.chip:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+.list-header {
+  padding: 8px 14px;
+  font-size: 11px; color: var(--text2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.count-badge {
+  background: var(--navy3); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1px 7px; font-size: 10px; color: var(--accent);
+}
+
+.student-list { overflow-y: auto; flex: 1; }
+.student-list::-webkit-scrollbar { width: 4px; }
+.student-list::-webkit-scrollbar-track { background: transparent; }
+.student-list::-webkit-scrollbar-thumb { background: var(--navy3); border-radius: 4px; }
+
+.student-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background .12s;
+}
+.student-item:hover { background: var(--navy3); }
+.student-item.active { background: rgba(59,158,255,0.1); border-left: 2px solid var(--accent); }
+
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; flex-shrink: 0;
+}
+.si-info { flex: 1; min-width: 0; }
+.si-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.si-company { font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.si-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.score-badge {
+  font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 6px;
+}
+.faculty-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* ── MAP ── */
+#map { flex: 1; z-index: 1; }
+
+/* leaflet overrides */
+.leaflet-container { background: #0a1525; }
+.leaflet-tile { filter: brightness(0.75) saturate(0.6) hue-rotate(200deg); }
+
+/* custom marker */
+.pin-marker {
+  width: 36px; height: 36px; border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid rgba(255,255,255,0.3);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.5);
+  cursor: pointer;
+  transition: transform .15s;
+}
+.pin-inner {
+  transform: rotate(45deg);
+  font-size: 11px; font-weight: 700; color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.pin-count {
+  position: absolute; top: -6px; right: -6px;
+  background: #fff; color: #0f1b2d;
+  border-radius: 10px; font-size: 9px; font-weight: 700;
+  padding: 1px 5px; min-width: 16px; text-align: center;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+/* ── DETAIL PANEL (right) ── */
+.detail-panel {
+  width: 290px; flex-shrink: 0;
+  background: var(--navy2);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  transition: transform .25s;
+}
+.detail-panel::-webkit-scrollbar { width: 4px; }
+.detail-panel::-webkit-scrollbar-thumb { background: var(--navy3); border-radius: 4px; }
+.detail-panel.hidden { display: none; }
+
+.dp-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.dp-avatar {
+  width: 46px; height: 46px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; flex-shrink: 0;
+}
+.dp-name { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.dp-id { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.dp-faculty { font-size: 11px; margin-top: 4px; }
+
+.dp-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.dp-section-title {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--text3); margin-bottom: 10px;
+}
+.dp-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.dp-key { font-size: 12px; color: var(--text2); }
+.dp-val { font-size: 12px; font-weight: 500; text-align: right; max-width: 160px; }
+
+.score-ring {
+  width: 56px; height: 56px; margin: 0 auto 8px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 3px solid;
+  font-size: 20px; font-weight: 700;
+}
+.eval-comment {
+  font-size: 12px; color: var(--text2);
+  background: var(--navy3); border-radius: 8px;
+  padding: 8px 10px; line-height: 1.6; margin-top: 6px;
+}
+
+.status-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 8px;
+  font-size: 12px; font-weight: 500;
+}
+
+/* ── POPUP ── */
+.leaflet-popup-content-wrapper {
+  background: var(--navy2) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+  color: var(--text) !important;
+  font-family: 'Sarabun', sans-serif !important;
+}
+.leaflet-popup-tip { background: var(--navy2) !important; }
+.leaflet-popup-content { margin: 12px 16px !important; }
+.popup-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.popup-row { font-size: 11px; color: var(--text2); margin-bottom: 3px; }
+.popup-row span { color: var(--text); font-weight: 500; }
+.popup-students { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+.popup-student-chip {
+  font-size: 10px; padding: 2px 7px; border-radius: 10px;
+  background: var(--navy3); border: 1px solid var(--border);
+  cursor: pointer; transition: border-color .12s;
+}
+.popup-student-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── LEGEND ── */
+.legend {
+  position: absolute; bottom: 24px; left: 314px; z-index: 500;
+  background: var(--glass); backdrop-filter: blur(10px);
+  border: 1px solid var(--border2); border-radius: 10px;
+  padding: 10px 14px; font-size: 11px;
+}
+.legend-title { font-weight: 600; margin-bottom: 7px; color: var(--text2); font-size: 10px; text-transform: uppercase; letter-spacing: .6px; }
+.legend-row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* empty state */
+.empty-state { padding: 32px 16px; text-align: center; color: var(--text2); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🎓</div>
+  <div>
+    <div class="header-title">ระบบติดตามการฝึกงานนักศึกษา</div>
+    <div class="header-sub">ปีการศึกษา 2568 · มหาวิทยาลัย</div>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="stat-pills">
+    <div class="stat-pill"><span class="num" id="stat-students">50</span><span class="lbl">นักศึกษา</span></div>
+    <div class="stat-pill"><span class="num" id="stat-companies">25</span><span class="lbl">บริษัท</span></div>
+    <div class="stat-pill"><span class="num" id="stat-done" style="color:var(--green)">30</span><span class="lbl">นิเทศแล้ว</span></div>
+    <div class="stat-pill"><span class="num" id="stat-avg" style="color:var(--gold)">8.7</span><span class="lbl">คะแนนเฉลี่ย</span></div>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search" placeholder="ค้นหานักศึกษา / บริษัท..." oninput="applyFilters()"/>
+  </div>
+</header>
+
+<div class="main">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="filter-bar">
+      <div>
+        <div class="filter-label">คณะ</div>
+        <div class="filter-row" id="faculty-chips"></div>
+      </div>
+      <div>
+        <div class="filter-label">สถานะนิเทศ</div>
+        <div class="filter-row">
+          <div class="chip active" data-status="all" onclick="setStatus(this,'all')">ทั้งหมด</div>
+          <div class="chip" data-status="3" onclick="setStatus(this,'3')">✅ นิเทศแล้ว</div>
+          <div class="chip" data-status="2" onclick="setStatus(this,'2')">🔄 รอนิเทศ</div>
+          <div class="chip" data-status="1" onclick="setStatus(this,'1')">⏳ รอจัดสรร</div>
+        </div>
+      </div>
+    </div>
+    <div class="list-header">
+      <span>รายชื่อนักศึกษา</span>
+      <span class="count-badge" id="list-count">50</span>
+    </div>
+    <div class="student-list" id="student-list"></div>
+  </div>
+
+  <!-- MAP -->
+  <div style="position:relative;flex:1;display:flex;overflow:hidden;">
+    <div id="map" style="flex:1;"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div class="detail-panel hidden" id="detail-panel"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ════════════════════════════════════════
+//  DATA (from Microsoft Access DB)
+// ════════════════════════════════════════
+const FACULTY = {
+  1: { name: "คณะเทคโนโลยีสารสนเทศ", short: "IT", color: "#3b9eff", bg: "rgba(59,158,255,0.15)" },
+  2: { name: "คณะวิศวกรรมศาสตร์",     short: "ENG", color: "#f97316", bg: "rgba(249,115,22,0.15)" },
+  3: { name: "คณะบริหารธุรกิจ",        short: "BUS", color: "#22c55e", bg: "rgba(34,197,94,0.15)"  },
+  4: { name: "คณะวิทยาศาสตร์ประยุกต์", short: "SCI", color: "#a855f7", bg: "rgba(168,85,247,0.15)" },
+  5: { name: "คณะครุศาสตร์อุตสาหกรรม", short: "EDU", color: "#14b8a6", bg: "rgba(20,184,166,0.15)" },
+};
+
+const COMPANY_TYPE = {
+  1: "IT / Software House",
+  2: "โรงงานอุตสาหกรรม / ยานยนต์",
+  3: "ธุรกิจบริการ / รัฐวิสาหกิจ",
+  4: "ธนาคาร / สถาบันการเงิน",
+  5: "ค้าปลีก / E-Commerce",
+};
+
+const VISIT_STATUS = {
+  1: { name: "รอจัดสรรอาจารย์",            color: "#ef4444", bg: "rgba(239,68,68,0.12)"   },
+  2: { name: "กำลังดำเนินการ (รอไปนิเทศ)", color: "#f59e0b", bg: "rgba(245,158,11,0.12)"  },
+  3: { name: "นิเทศเสร็จสิ้น",             color: "#22c55e", bg: "rgba(34,197,94,0.12)"   },
+};
+
+const COMPANIES = [
+  {id:1, name:"บจก. ซอฟต์แวร์ โซลูชั่น",        lat:13.73671, lng:100.52318, type_id:1},
+  {id:2, name:"เอสซีบี เทคเอกซ์ (SCB TechX)",   lat:13.82823, lng:100.55979, type_id:1},
+  {id:3, name:"KBTG",                             lat:13.90401, lng:100.52981, type_id:1},
+  {id:4, name:"LINE MAN Wongnai",                lat:13.72251, lng:100.52841, type_id:1},
+  {id:5, name:"Agoda Bangkok",                   lat:13.74602, lng:100.53901, type_id:1},
+  {id:6, name:"IBM Thailand",                    lat:13.78211, lng:100.54671, type_id:1},
+  {id:7, name:"โตโยต้า มอเตอร์ สำโรง",          lat:13.63972, lng:100.59381, type_id:2},
+  {id:8, name:"ฮอนด้า ออโตโมบิล อยุธยา",        lat:14.31425, lng:100.62121, type_id:2},
+  {id:9, name:"Western Digital (อยุธยา)",        lat:14.23411, lng:100.61221, type_id:2},
+  {id:10,name:"Isuzu Motors (สมุทรปราการ)",      lat:13.62101, lng:100.58211, type_id:2},
+  {id:11,name:"SCG (บางซื่อ)",                  lat:13.80512, lng:100.53781, type_id:2},
+  {id:12,name:"ปตท. สำนักงานใหญ่ วิภาวดี",      lat:13.82029, lng:100.55745, type_id:3},
+  {id:13,name:"กฟผ. สำนักงานใหญ่ นนทบุรี",      lat:13.80621, lng:100.50561, type_id:3},
+  {id:14,name:"AIS Tower",                       lat:13.78121, lng:100.54891, type_id:3},
+  {id:15,name:"True Corporation",               lat:13.75671, lng:100.57321, type_id:3},
+  {id:16,name:"GMM Grammy",                     lat:13.74321, lng:100.56231, type_id:3},
+  {id:17,name:"ธนาคารกสิกรไทย (ราษฎร์บูรณะ)", lat:13.68121, lng:100.51551, type_id:4},
+  {id:18,name:"ธนาคารกรุงเทพ (สีลม)",          lat:13.72651, lng:100.53121, type_id:4},
+  {id:19,name:"ธนาคารไทยพาณิชย์ (รัชโยธิน)",   lat:13.82911, lng:100.56811, type_id:4},
+  {id:20,name:"ตลาดหลักทรัพย์แห่งประเทศไทย",   lat:13.76211, lng:100.56841, type_id:4},
+  {id:21,name:"Shopee Thailand",                lat:13.75121, lng:100.57551, type_id:5},
+  {id:22,name:"CP All (สีลม)",                 lat:13.89671, lng:100.53421, type_id:5},
+  {id:23,name:"Central Group",                  lat:13.74411, lng:100.53981, type_id:5},
+  {id:24,name:"Lotus's (สำนักงานใหญ่)",         lat:13.81821, lng:100.62411, type_id:5},
+  {id:25,name:"Lazada Thailand",                lat:13.74121, lng:100.55121, type_id:5},
+];
+
+const STUDENTS_RAW = [
+  {id:"6601001",fname:"สมชาย",    lname:"ใจดี",        fid:1},
+  {id:"6601002",fname:"สมหญิง",   lname:"รักเรียน",    fid:1},
+  {id:"6601003",fname:"ณัฐวุฒิ",  lname:"โค้ดเก่ง",    fid:1},
+  {id:"6601004",fname:"อารยา",    lname:"ดาต้า",       fid:1},
+  {id:"6601005",fname:"ธนพล",     lname:"เน็ตเวิร์ค",  fid:1},
+  {id:"6601006",fname:"นารี",     lname:"ไอที",        fid:1},
+  {id:"6601007",fname:"วีระ",     lname:"ระบบ",        fid:1},
+  {id:"6601008",fname:"อนันต์",   lname:"แฮกเกอร์",    fid:1},
+  {id:"6601009",fname:"สุชาติ",   lname:"โปรแกรม",     fid:1},
+  {id:"6601010",fname:"รัตนา",    lname:"เซิร์ฟเวอร์", fid:1},
+  {id:"6602001",fname:"ชาติชาย",  lname:"ชาญชัย",      fid:2},
+  {id:"6602002",fname:"มาลี",     lname:"ดีงาม",       fid:2},
+  {id:"6602003",fname:"กฤษดา",    lname:"เหล็กกล้า",   fid:2},
+  {id:"6602004",fname:"นภัสสร",   lname:"เครื่องยนต์", fid:2},
+  {id:"6602005",fname:"วีรภัทร",  lname:"สร้างประดิษฐ์",fid:2},
+  {id:"6602006",fname:"ปกรณ์",    lname:"โครงสร้าง",   fid:2},
+  {id:"6602007",fname:"ภัทร",     lname:"วงจร",        fid:2},
+  {id:"6602008",fname:"มนตรี",    lname:"ไฟฟ้า",       fid:2},
+  {id:"6602009",fname:"วิทยา",    lname:"โยธา",        fid:2},
+  {id:"6602010",fname:"จิรายุ",   lname:"แมคคานิค",    fid:2},
+  {id:"6603001",fname:"วินัย",    lname:"ใฝ่รู้",      fid:3},
+  {id:"6603002",fname:"สุดา",     lname:"พาณิชย์",     fid:3},
+  {id:"6603003",fname:"วิชัย",    lname:"การค้า",      fid:3},
+  {id:"6603004",fname:"นันทนา",   lname:"บัญชี",       fid:3},
+  {id:"6603005",fname:"ศิริพร",   lname:"การตลาด",     fid:3},
+  {id:"6603006",fname:"สมศักดิ์", lname:"บริหาร",      fid:3},
+  {id:"6603007",fname:"อรทัย",    lname:"ธุรกิจ",      fid:3},
+  {id:"6603008",fname:"เกรียงไกร",lname:"การเงิน",     fid:3},
+  {id:"6603009",fname:"วนิดา",    lname:"ลงทุน",       fid:3},
+  {id:"6603010",fname:"บุญส่ง",   lname:"เศรษฐกิจ",    fid:3},
+  {id:"6604001",fname:"สมเกียรติ",lname:"ทดลอง",       fid:4},
+  {id:"6604002",fname:"วิลาวัลย์",lname:"เคมี",        fid:4},
+  {id:"6604003",fname:"เอกชัย",   lname:"ฟิสิกส์",     fid:4},
+  {id:"6604004",fname:"ดวงใจ",    lname:"ชีวะ",        fid:4},
+  {id:"6604005",fname:"นพดล",     lname:"วิจัย",       fid:4},
+  {id:"6604006",fname:"สุรพล",    lname:"สถิติ",       fid:4},
+  {id:"6604007",fname:"พิมพ์ชนก", lname:"คณิตศาสตร์",  fid:4},
+  {id:"6604008",fname:"อดิศร",    lname:"จุลชีววิทยา", fid:4},
+  {id:"6604009",fname:"กนกวรรณ",  lname:"วิเคราะห์",   fid:4},
+  {id:"6604010",fname:"ธีรเทพ",   lname:"สสาร",        fid:4},
+  {id:"6605001",fname:"ปัญญา",    lname:"สอนดี",       fid:5},
+  {id:"6605002",fname:"กานดา",    lname:"อบรม",        fid:5},
+  {id:"6605003",fname:"ชลิต",     lname:"ฝึกหัด",      fid:5},
+  {id:"6605004",fname:"รจนา",     lname:"หลักสูตร",    fid:5},
+  {id:"6605005",fname:"ประเสริฐ", lname:"ประเมิน",     fid:5},
+  {id:"6605006",fname:"กมล",      lname:"ถ่ายทอด",     fid:5},
+  {id:"6605007",fname:"นฤมล",     lname:"วิชาการ",     fid:5},
+  {id:"6605008",fname:"ทวี",      lname:"เทคนิค",      fid:5},
+  {id:"6605009",fname:"อัมพร",    lname:"สื่อสอน",     fid:5},
+  {id:"6605010",fname:"สมบูรณ์",  lname:"วัดผล",       fid:5},
+];
+
+const TEACHERS = {
+  1:"ผศ.ดร. ใจดี มีธรรม", 2:"อ. วีระ เก่งคอม",
+  3:"ดร. สมศักดิ์ เหล็กกล้า", 4:"ผศ. มานี มีเงิน",
+  5:"รศ.ดร. วิทยา สร้างสรรค์", 6:"อ. สมคิด จิตมั่นคง",
+  7:"รศ. สมศรี รักวิจัย", 8:"อ. เอกภพ ทดลอง",
+  9:"ดร. นันทา สอนดี", 10:"อ. ทรงพล อบรม",
+};
+
+// internship_id → {student_id, company_id}
+const INTERNSHIPS = [
+  {iid:1,sid:"6601001",cid:1},{iid:2,sid:"6601002",cid:1},
+  {iid:3,sid:"6602001",cid:7},{iid:4,sid:"6602002",cid:7},
+  {iid:5,sid:"6603001",cid:12},{iid:6,sid:"6601003",cid:2},
+  {iid:7,sid:"6601004",cid:2},{iid:8,sid:"6601005",cid:3},
+  {iid:9,sid:"6601006",cid:3},{iid:10,sid:"6601007",cid:4},
+  {iid:11,sid:"6601008",cid:4},{iid:12,sid:"6601009",cid:5},
+  {iid:13,sid:"6601010",cid:6},{iid:14,sid:"6602003",cid:8},
+  {iid:15,sid:"6602004",cid:8},{iid:16,sid:"6602005",cid:9},
+  {iid:17,sid:"6602006",cid:9},{iid:18,sid:"6602007",cid:9},
+  {iid:19,sid:"6602008",cid:10},{iid:20,sid:"6602009",cid:11},
+  {iid:21,sid:"6602010",cid:11},{iid:22,sid:"6603002",cid:12},
+  {iid:23,sid:"6603003",cid:13},{iid:24,sid:"6603004",cid:14},
+  {iid:25,sid:"6603005",cid:15},{iid:26,sid:"6603006",cid:16},
+  {iid:27,sid:"6603007",cid:17},{iid:28,sid:"6603008",cid:18},
+  {iid:29,sid:"6603009",cid:19},{iid:30,sid:"6603010",cid:20},
+  {iid:31,sid:"6604001",cid:21},{iid:32,sid:"6604002",cid:21},
+  {iid:33,sid:"6604003",cid:22},{iid:34,sid:"6604004",cid:22},
+  {iid:35,sid:"6604005",cid:23},{iid:36,sid:"6604006",cid:23},
+  {iid:37,sid:"6604007",cid:24},{iid:38,sid:"6604008",cid:24},
+  {iid:39,sid:"6604009",cid:25},{iid:40,sid:"6604010",cid:25},
+  {iid:41,sid:"6605001",cid:1},{iid:42,sid:"6605002",cid:2},
+  {iid:43,sid:"6605003",cid:3},{iid:44,sid:"6605004",cid:6},
+  {iid:45,sid:"6605005",cid:7},{iid:46,sid:"6605006",cid:11},
+  {iid:47,sid:"6605007",cid:13},{iid:48,sid:"6605008",cid:17},
+  {iid:49,sid:"6605009",cid:21},{iid:50,sid:"6605010",cid:23},
+];
+
+// visit_id → {internship_id, teacher_id, status_id}
+const VISITS = [
+  {vid:1,iid:1,tid:1,stat:3},{vid:2,iid:2,tid:1,stat:3},
+  {vid:3,iid:3,tid:2,stat:3},{vid:4,iid:4,tid:2,stat:3},
+  {vid:5,iid:5,tid:1,stat:3},{vid:6,iid:6,tid:1,stat:3},
+  {vid:7,iid:7,tid:2,stat:3},{vid:8,iid:8,tid:2,stat:3},
+  {vid:9,iid:9,tid:1,stat:3},{vid:10,iid:10,tid:2,stat:3},
+  {vid:11,iid:11,tid:3,stat:3},{vid:12,iid:12,tid:3,stat:3},
+  {vid:13,iid:13,tid:4,stat:3},{vid:14,iid:14,tid:4,stat:3},
+  {vid:15,iid:15,tid:3,stat:3},{vid:16,iid:16,tid:3,stat:3},
+  {vid:17,iid:17,tid:4,stat:3},{vid:18,iid:18,tid:4,stat:3},
+  {vid:19,iid:19,tid:3,stat:3},{vid:20,iid:20,tid:4,stat:3},
+  {vid:21,iid:21,tid:5,stat:3},{vid:22,iid:22,tid:5,stat:3},
+  {vid:23,iid:23,tid:6,stat:3},{vid:24,iid:24,tid:5,stat:3},
+  {vid:25,iid:25,tid:6,stat:3},{vid:26,iid:26,tid:5,stat:3},
+  {vid:27,iid:27,tid:6,stat:3},{vid:28,iid:28,tid:5,stat:3},
+  {vid:29,iid:29,tid:6,stat:3},{vid:30,iid:30,tid:5,stat:3},
+  {vid:31,iid:31,tid:7,stat:2},{vid:32,iid:32,tid:7,stat:2},
+  {vid:33,iid:33,tid:8,stat:2},{vid:34,iid:34,tid:8,stat:2},
+  {vid:35,iid:35,tid:7,stat:2},{vid:36,iid:36,tid:9,stat:1},
+  {vid:37,iid:37,tid:9,stat:1},{vid:38,iid:38,tid:10,stat:1},
+  {vid:39,iid:39,tid:10,stat:1},{vid:40,iid:40,tid:9,stat:1},
+];
+
+const EVALUATIONS = [
+  {eid:1,vid:1,score:9,comment:"ทำงานดี มีทักษะพื้นฐานแน่น"},
+  {eid:2,vid:2,score:8,comment:"ปรับตัวเข้ากับพี่เลี้ยงได้ดี"},
+  {eid:3,vid:3,score:10,comment:"ผลงานเยี่ยม ช่วยพัฒนาระบบได้จริง"},
+  {eid:4,vid:4,score:7,comment:"ขาดทักษะการนำเสนองาน"},
+  {eid:5,vid:5,score:9,comment:"ขยัน อดทน เรียนรู้ไว"},
+  {eid:6,vid:6,score:8,comment:"งานเอกสารเรียบร้อยดี"},
+  {eid:7,vid:7,score:8,comment:"เดินทางมาทำงานสายบ้างบางวัน"},
+  {eid:8,vid:8,score:10,comment:"เป็นที่ชื่นชอบของเพื่อนร่วมงาน"},
+  {eid:9,vid:9,score:9,comment:"โค้ดเป็นระเบียบ อ่านง่าย"},
+  {eid:10,vid:10,score:7,comment:"ต้องเพิ่มความรอบคอบในการเทสต์ระบบ"},
+  {eid:11,vid:11,score:8,comment:"ปฏิบัติตามกฎโรงงานอย่างเคร่งครัด"},
+  {eid:12,vid:12,score:9,comment:"เข้าใจเครื่องจักรได้เร็ว"},
+  {eid:13,vid:13,score:10,comment:"มีความคิดสร้างสรรค์ในการแก้ปัญหา"},
+  {eid:14,vid:14,score:8,comment:"บางครั้งยังไม่กล้าซักถามเมื่อสงสัย"},
+  {eid:15,vid:15,score:9,comment:"สู้งานหนักได้ดีเยี่ยม"},
+  {eid:16,vid:16,score:8,comment:"มีมนุษยสัมพันธ์ดี"},
+  {eid:17,vid:17,score:9,comment:"รักษาสภาพแวดล้อมการทำงานได้ดี"},
+  {eid:18,vid:18,score:7,comment:"ยังใช้โปรแกรมคำนวณโครงสร้างได้ช้า"},
+  {eid:19,vid:19,score:10,comment:"สามารถคุมงานพื้นฐานได้เอง"},
+  {eid:20,vid:20,score:8,comment:"มีความรับผิดชอบสูง"},
+  {eid:21,vid:21,score:9,comment:"วิเคราะห์ข้อมูลได้แม่นยำ"},
+  {eid:22,vid:22,score:8,comment:"ทำงานตามเป้าหมายได้ครบถ้วน"},
+  {eid:23,vid:23,score:7,comment:"ทักษะภาษาอังกฤษยังต้องปรับปรุง"},
+  {eid:24,vid:24,score:10,comment:"มีความเป็นผู้นำในกลุ่ม"},
+  {eid:25,vid:25,score:9,comment:"จัดการเอกสารบัญชีได้ดีมาก"},
+  {eid:26,vid:26,score:8,comment:"ติดต่อประสานงานได้คล่องแคล่ว"},
+  {eid:27,vid:27,score:9,comment:"ปรับแผนการตลาดได้น่าสนใจ"},
+  {eid:28,vid:28,score:8,comment:"ช่วยงานอีเวนต์ของบริษัทได้ดี"},
+  {eid:29,vid:29,score:10,comment:"แก้ไขปัญหาเฉพาะหน้าได้เก่ง"},
+  {eid:30,vid:30,score:9,comment:"เสนอไอเดียใหม่ๆ ให้ทีมเสมอ"},
+];
+
+// ════════════════════════════════════════
+//  BUILD LOOKUP MAPS
+// ════════════════════════════════════════
+const companyMap = Object.fromEntries(COMPANIES.map(c => [c.id, c]));
+const internByIid = Object.fromEntries(INTERNSHIPS.map(i => [i.iid, i]));
+const internBySid = {};
+INTERNSHIPS.forEach(i => { internBySid[i.sid] = i; });
+const visitByIid = {};
+VISITS.forEach(v => { visitByIid[v.iid] = v; });
+const evalByVid = Object.fromEntries(EVALUATIONS.map(e => [e.vid, e]));
+
+// Enrich students
+const STUDENTS = STUDENTS_RAW.map(s => {
+  const intern = internBySid[s.id];
+  const company = intern ? companyMap[intern.cid] : null;
+  const visit = intern ? visitByIid[intern.iid] : null;
+  const eval_ = visit ? evalByVid[visit.vid] : null;
+  return {
+    ...s,
+    fullname: s.fname + " " + s.lname,
+    intern, company, visit, eval_,
+    teacher: visit ? TEACHERS[visit.tid] : null,
+    status: visit ? visit.stat : null,
+    score: eval_ ? eval_.score : null,
+    fac: FACULTY[s.fid],
+  };
+});
+
+// ════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════
+let activeFilters = { faculty: "all", status: "all", q: "" };
+let selectedId = null;
+
+// ════════════════════════════════════════
+//  MAP INIT
+// ════════════════════════════════════════
+const map = L.map("map", { zoomControl: false }).setView([13.756, 100.544], 11);
+L.control.zoom({ position: "bottomright" }).addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "© OpenStreetMap", maxZoom: 18,
+}).addTo(map);
+
+let mapMarkers = {};
+
+function typeColor(tid) {
+  const c = ["#3b9eff","#f97316","#22c55e","#f5a623","#a855f7"];
+  return c[(tid-1) % c.length];
+}
+
+function buildMarker(company, students) {
+  const col = typeColor(company.type_id);
+  const icon = L.divIcon({
+    className: "",
+    html: `<div class="pin-marker" style="background:${col}20;border-color:${col}60;">
+             <div class="pin-inner" style="color:${col}">${students.length}</div>
+             ${students.length > 1 ? `<div class="pin-count">${students.length}</div>` : ""}
+           </div>`,
+    iconSize: [36,36], iconAnchor: [18,36], popupAnchor: [0,-38],
+  });
+
+  const m = L.marker([company.lat, company.lng], { icon }).addTo(map);
+
+  const chips = students.map(s =>
+    `<div class="popup-student-chip" onclick="selectStudent('${s.id}')">${s.fname} ${s.lname.slice(0,4)}.</div>`
+  ).join("");
+
+  const avgScore = students.filter(s=>s.score).length
+    ? (students.filter(s=>s.score).reduce((a,s)=>a+s.score,0) / students.filter(s=>s.score).length).toFixed(1)
+    : "-";
+
+  m.bindPopup(`
+    <div class="popup-title">${company.name}</div>
+    <div class="popup-row">ประเภท: <span>${COMPANY_TYPE[company.type_id]}</span></div>
+    <div class="popup-row">นักศึกษา: <span>${students.length} คน</span> · คะแนนเฉลี่ย: <span>${avgScore}</span></div>
+    <div class="popup-students">${chips}</div>
+  `, { maxWidth: 280 });
+
+  m.on("click", () => m.openPopup());
+  return m;
+}
+
+// ════════════════════════════════════════
+//  RENDER FUNCTIONS
+// ════════════════════════════════════════
+function getFiltered() {
+  return STUDENTS.filter(s => {
+    if (activeFilters.faculty !== "all" && s.fid != activeFilters.faculty) return false;
+    if (activeFilters.status !== "all" && s.status != activeFilters.status) return false;
+    if (activeFilters.q) {
+      const q = activeFilters.q.toLowerCase();
+      if (!s.fullname.includes(activeFilters.q) &&
+          !s.id.includes(activeFilters.q) &&
+          !(s.company && s.company.name.toLowerCase().includes(q)) &&
+          !s.fac.name.includes(activeFilters.q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderMap(filtered) {
+  // Remove old markers
+  Object.values(mapMarkers).forEach(m => map.removeLayer(m));
+  mapMarkers = {};
+
+  // Group by company
+  const byCompany = {};
+  filtered.forEach(s => {
+    if (!s.company) return;
+    if (!byCompany[s.company.id]) byCompany[s.company.id] = { company: s.company, students: [] };
+    byCompany[s.company.id].students.push(s);
+  });
+
+  Object.values(byCompany).forEach(({ company, students }) => {
+    mapMarkers[company.id] = buildMarker(company, students);
+  });
+}
+
+function scoreColor(score) {
+  if (!score) return "#888";
+  if (score >= 9) return "#22c55e";
+  if (score >= 7) return "#f5a623";
+  return "#ef4444";
+}
+
+function renderList(filtered) {
+  const el = document.getElementById("student-list");
+  document.getElementById("list-count").textContent = filtered.length;
+
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty-state">ไม่พบนักศึกษาที่ตรงกับเงื่อนไข</div>`;
+    return;
+  }
+
+  el.innerHTML = filtered.map(s => {
+    const fac = s.fac;
+    const score = s.score;
+    const stat = s.status;
+    const statusEmoji = stat === 3 ? "✅" : stat === 2 ? "🔄" : stat === 1 ? "⏳" : "❓";
+    return `
+      <div class="student-item ${s.id === selectedId ? "active" : ""}" onclick="selectStudent('${s.id}')">
+        <div class="avatar" style="background:${fac.bg};color:${fac.color}">${s.fname[0]}</div>
+        <div class="si-info">
+          <div class="si-name">${s.fname} ${s.lname}</div>
+          <div class="si-company">${s.company ? s.company.name : "ไม่มีข้อมูล"}</div>
+        </div>
+        <div class="si-right">
+          ${score != null ? `<div class="score-badge" style="background:${scoreColor(score)}20;color:${scoreColor(score)}">${score}/10</div>` : ""}
+          <span style="font-size:12px">${statusEmoji}</span>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function renderDetail(student) {
+  const dp = document.getElementById("detail-panel");
+  if (!student) { dp.classList.add("hidden"); return; }
+  dp.classList.remove("hidden");
+
+  const fac = student.fac;
+  const company = student.company;
+  const visit = student.visit;
+  const eval_ = student.eval_;
+  const stat = student.status;
+  const statusInfo = stat ? VISIT_STATUS[stat] : null;
+
+  dp.innerHTML = `
+    <div class="dp-header">
+      <div class="dp-avatar" style="background:${fac.bg};color:${fac.color}">${student.fname[0]}</div>
+      <div>
+        <div class="dp-name">${student.fname} ${student.lname}</div>
+        <div class="dp-id">รหัส: ${student.id}</div>
+        <div class="dp-faculty" style="color:${fac.color};font-size:11px;margin-top:4px">
+          <span style="background:${fac.bg};padding:2px 8px;border-radius:10px;">${fac.name}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dp-section">
+      <div class="dp-section-title">📍 สถานที่ฝึกงาน</div>
+      ${company ? `
+        <div class="dp-row"><span class="dp-key">บริษัท</span><span class="dp-val">${company.name}</span></div>
+        <div class="dp-row"><span class="dp-key">ประเภท</span><span class="dp-val">${COMPANY_TYPE[company.type_id]}</span></div>
+        <div class="dp-row"><span class="dp-key">พิกัด</span><span class="dp-val" style="font-size:11px;color:var(--text2)">${company.lat.toFixed(5)}, ${company.lng.toFixed(5)}</span></div>
+      ` : "<div style='color:var(--text2);font-size:12px'>ไม่มีข้อมูล</div>"}
+    </div>
+
+    <div class="dp-section">
+      <div class="dp-section-title">👨‍🏫 การนิเทศ</div>
+      ${visit ? `
+        <div class="dp-row"><span class="dp-key">อาจารย์นิเทศ</span><span class="dp-val">${student.teacher}</span></div>
+        ${statusInfo ? `
+          <div class="status-bar" style="background:${statusInfo.bg};color:${statusInfo.color};margin-top:6px">
+            ${stat === 3 ? "✅" : stat === 2 ? "🔄" : "⏳"} ${statusInfo.name}
+          </div>` : ""}
+      ` : "<div style='color:var(--text2);font-size:12px'>ไม่มีข้อมูลการนิเทศ</div>"}
+    </div>
+
+    ${eval_ ? `
+    <div class="dp-section">
+      <div class="dp-section-title">📊 ผลการประเมิน</div>
+      <div class="score-ring" style="border-color:${scoreColor(eval_.score)};color:${scoreColor(eval_.score)}">${eval_.score}</div>
+      <div style="text-align:center;font-size:11px;color:var(--text2);margin-bottom:8px">คะแนนจากบริษัท / 10</div>
+      <div class="eval-comment">"${eval_.comment}"</div>
+    </div>` : ""}
+
+    <div style="padding:12px 16px">
+      <button onclick="flyToStudent('${student.id}')"
+        style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--accent);background:rgba(59,158,255,0.08);color:var(--accent);font-family:'Sarabun',sans-serif;font-size:13px;cursor:pointer;transition:background .15s;"
+        onmouseover="this.style.background='rgba(59,158,255,0.18)'"
+        onmouseout="this.style.background='rgba(59,158,255,0.08)'">
+        🗺️ ดูบนแผนที่
+      </button>
+    </div>
+  `;
+}
+
+function applyFilters() {
+  activeFilters.q = document.getElementById("search").value.trim();
+  const filtered = getFiltered();
+  renderList(filtered);
+  renderMap(filtered);
+  updateStats(filtered);
+}
+
+function setFaculty(el, val) {
+  activeFilters.faculty = val;
+  document.querySelectorAll("[data-faculty]").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+  applyFilters();
+}
+
+function setStatus(el, val) {
+  activeFilters.status = val;
+  document.querySelectorAll("[data-status]").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+  applyFilters();
+}
+
+function selectStudent(id) {
+  selectedId = id;
+  const s = STUDENTS.find(x => x.id === id);
+  renderDetail(s);
+  applyFilters(); // re-render list with active highlight
+  if (s && s.company) {
+    map.flyTo([s.company.lat, s.company.lng], 14, { duration: 0.8 });
+  }
+  // scroll list to item
+  setTimeout(() => {
+    const el = document.querySelector(".student-item.active");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 100);
+}
+
+function flyToStudent(id) {
+  const s = STUDENTS.find(x => x.id === id);
+  if (s && s.company) {
+    map.flyTo([s.company.lat, s.company.lng], 15, { duration: 1 });
+    setTimeout(() => {
+      const m = mapMarkers[s.company.id];
+      if (m) m.openPopup();
+    }, 1100);
+  }
+}
+
+function updateStats(filtered) {
+  const done = filtered.filter(s => s.status === 3).length;
+  const scores = filtered.filter(s => s.score != null).map(s => s.score);
+  const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : "-";
+  const companyIds = new Set(filtered.filter(s=>s.company).map(s=>s.company.id));
+  document.getElementById("stat-students").textContent = filtered.length;
+  document.getElementById("stat-companies").textContent = companyIds.size;
+  document.getElementById("stat-done").textContent = done;
+  document.getElementById("stat-avg").textContent = avg;
+}
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+// Faculty chips
+const facChips = document.getElementById("faculty-chips");
+facChips.innerHTML = `<div class="chip active" data-faculty="all" onclick="setFaculty(this,'all')">ทั้งหมด</div>` +
+  Object.entries(FACULTY).map(([id, f]) =>
+    `<div class="chip" data-faculty="${id}" style="border-color:${f.color}20" onclick="setFaculty(this,'${id}')">${f.short}</div>`
+  ).join("");
+
+// Legend
+const typeColors = {"#3b9eff":"IT","#f97316":"อุตสาหกรรม","#22c55e":"บริการ/รัฐ","#f5a623":"ธนาคาร","#a855f7":"ค้าปลีก"};
+document.getElementById("legend").innerHTML = `
+  <div class="legend-title">ประเภทบริษัท</div>
+  ${Object.entries(typeColors).map(([col,lbl]) =>
+    `<div class="legend-row"><div class="legend-dot" style="background:${col}"></div><span style="color:var(--text2)">${lbl}</span></div>`
+  ).join("")}
+`;
+
+// Initial render
+applyFilters();
+</script>
+</body>
+</html>
